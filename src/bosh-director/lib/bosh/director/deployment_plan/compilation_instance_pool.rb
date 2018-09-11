@@ -45,6 +45,7 @@ module Bosh::Director
         @max_instance_count = max_instance_count
         @instance_provider = instance_provider
         @mutex = Mutex.new
+        @variables_interpolator = Bosh::Director::ConfigServer::VariablesInterpolator.new
       end
 
       def with_reused_vm(stemcell, package)
@@ -87,6 +88,7 @@ module Bosh::Director
                 instance: instance_memo.instance,
                 desired_instance: DeploymentPlan::DesiredInstance.new,
                 network_plans: [],
+                variables_interpolator: @variables_interpolator
               )
               destroy_instance(instance_plan)
             end
@@ -167,6 +169,7 @@ module Bosh::Director
           {},
           availability_zone,
           @logger,
+          @variables_interpolator,
         )
         instance.bind_new_instance_model
 
