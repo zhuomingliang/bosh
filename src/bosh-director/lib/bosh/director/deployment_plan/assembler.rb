@@ -88,6 +88,7 @@ module Bosh::Director
       bind_instance_networks
       bind_dns
       bind_links if should_bind_links
+      generate_variables if is_deploy_action
     end
 
     private

@@ -133,6 +133,17 @@ module Bosh::Director::ConfigServer
       end
     end
 
+    def generate_certificate(name, deployment_name, variable_set, options)
+      dns_record_names = options[:dns_record_names]
+
+      certificate_options = {
+        'common_name' => dns_record_names.first,
+        'alternative_names' => dns_record_names
+      }
+
+      generate_value_and_record_event(name, 'certificate', deployment_name, variable_set, certificate_options)
+    end
+
     private
 
     def fetch_values_with_deployment(variables, variable_set, must_be_absolute_name)
