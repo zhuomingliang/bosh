@@ -54,6 +54,7 @@ describe 'create-release', type: :integration do
         'jobs/transitive_deps.tgz',
         'jobs/id_job.tgz',
         'jobs/job_with_bad_template.tgz',
+        'jobs/job_with_flaky_template.tgz',
         'jobs/local_dns_records_json.tgz',
         'packages/a.tgz',
         'packages/b.tgz',

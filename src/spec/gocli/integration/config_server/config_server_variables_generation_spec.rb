@@ -312,6 +312,236 @@ describe 'variable generation with config server', type: :integration do
           end
         end
 
+        context 'with a flaky template' do
+          let(:manifest_hash) do
+            Bosh::Spec::NewDeployments.manifest_with_release.merge(
+              {
+                'instance_groups' => [Bosh::Spec::NewDeployments.instance_group_with_many_jobs(
+                  name: 'our_instance_group',
+                  jobs: [
+                    {'name' => 'job_with_flaky_template',
+                      'properties' => job_properties
+                    }
+                  ],
+                  instances: 7
+                )]
+              })
+          end
+
+          it 'should still successfuly recreate flaky job even if the variable name has changed' do
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_instance_index'] = 1
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_on_job_start'] = true
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_every_n_time'] = 2
+
+            puts "======== first deploy"
+            deploy_from_scratch(no_login: true, manifest_hash: manifest_hash, cloud_config_hash: cloud_config, include_credentials: false, env: client_env)
+
+            puts "=== [first deploy] dumping template for '0'"
+            id_instance = director.instance('our_instance_group', '0', deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+            puts id_instance.read_job_template('job_with_flaky_template', 'config/config.yml')
+
+
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['gargamel']['color'] = '((new_var_a))'
+            manifest_hash['variables'][0]['name'] = 'new_var_a'
+
+            puts "======== bad deploy"
+
+            output, exit_code = deploy_from_scratch(
+              no_login: true,
+              manifest_hash: manifest_hash,
+              cloud_config_hash: cloud_config,
+              include_credentials: false,
+              env: client_env,
+              failure_expected: true,
+              return_exit_code: true
+            )
+            # expect(exit_code).to_not eq(0)
+            # expect(output).to include ("pre-start scripts failed")
+
+            puts bosh_runner.run('instances -i', deployment_name: 'simple', include_credentials: false, env: client_env)
+            # puts bosh_runner.run('vms --vitals', deployment_name: 'simple', include_credentials: false, env: client_env)
+
+            %w(0 1 2 3 4).each do |id|
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts "=== dumping template for #{id} vm_cid #{id_instance.vm_cid}"
+              puts id_instance.read_job_template('job_with_flaky_template', 'config/config.yml')
+            end
+
+            # recreate should work
+            puts "======== recreate deploy"
+            puts bosh_runner.run('recreate our_instance_group/0', deployment_name: 'simple', json: true, include_credentials: false, env: client_env, failure_expected: true)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts "=== dumping template for #{id} vm_cid #{id_instance.vm_cid}"
+              puts id_instance.read_job_template('job_with_flaky_template', 'config/config.yml')
+              # puts id_instance.read_job_template('job_with_bad_template', 'bin/pre-start')
+            end
+
+            puts bosh_runner.run('instances', deployment_name: 'simple', include_credentials: false, env: client_env)
+          end
+
+          it 'should still successfuly recreate flaky job even if the variable contents has changed' do
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_instance_index'] = 1
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_on_job_start'] = true
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_every_n_time'] = 2
+
+            puts "======== first deploy"
+            deploy_from_scratch(no_login: true, manifest_hash: manifest_hash, cloud_config_hash: cloud_config, include_credentials: false, env: client_env)
+
+            instance = director.instance('our_instance_group', '3', deployment: 'simple', include_credentials: false, env: client_env, no_login: true)
+
+            config_server_helper.put_value(prepend_namespace('var_a'), 'new_password')
+
+            puts "======== bad deploy"
+
+            output, exit_code = deploy_from_scratch(
+              no_login: true,
+              manifest_hash: manifest_hash,
+              cloud_config_hash: cloud_config,
+              include_credentials: false,
+              env: client_env,
+              failure_expected: true,
+              return_exit_code: true
+            )
+            expect(exit_code).to_not eq(0)
+            expect(output).to include ("pre-start scripts failed")
+
+            puts bosh_runner.run('instances -i', deployment_name: 'simple', include_credentials: false, env: client_env)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              puts "=== dumping template for #{id}"
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts id_instance.read_job_template('job_with_flaky_template', 'config/config.yml')
+            end
+
+            # recreate should work
+            puts "======== recreate deploy"
+            puts bosh_runner.run('recreate our_instance_group/0', deployment_name: 'simple', json: true, include_credentials: false, env: client_env)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts "=== dumping template for #{id} vm_cid #{id_instance.vm_cid}"
+              puts id_instance.read_job_template('job_with_flaky_template', 'config/config.yml')
+              # puts id_instance.read_job_template('job_with_bad_template', 'bin/pre-start')
+            end
+
+            puts bosh_runner.run('instances -i', deployment_name: 'simple', include_credentials: false, env: client_env)
+          end
+        end
+
+        context 'when one of the instances fail on second deploy' do
+          before do
+            manifest_hash['instance_groups'][0]['jobs'] = [
+              {
+                'name' => 'job_with_bad_template',
+                'properties' => job_properties,
+              },
+            ]
+            manifest_hash['instance_groups'][0]['instances'] = 7
+          end
+
+          it 'should still successfuly recreate even if the variable name has changed' do
+            puts "======== first deploy"
+            deploy_from_scratch(no_login: true, manifest_hash: manifest_hash, cloud_config_hash: cloud_config, include_credentials: false, env: client_env)
+
+            puts "=== [first deploy] dumping template for '0'"
+            id_instance = director.instance('our_instance_group', '0', deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+            puts id_instance.read_job_template('job_with_bad_template', 'config/config.yml')
+
+
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_instance_index'] = 1
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_on_job_start'] = true
+
+            manifest_hash['instance_groups'][0]['jobs'][0]['properties']['gargamel']['color'] = '((new_var_a))'
+            manifest_hash['variables'][0]['name'] = 'new_var_a'
+
+            puts "======== bad deploy"
+
+            output, exit_code = deploy_from_scratch(
+              no_login: true,
+              manifest_hash: manifest_hash,
+              cloud_config_hash: cloud_config,
+              include_credentials: false,
+              env: client_env,
+              failure_expected: true,
+              return_exit_code: true
+            )
+            expect(exit_code).to_not eq(0)
+            expect(output).to include ("pre-start scripts failed")
+
+            puts bosh_runner.run('instances -i', deployment_name: 'simple', include_credentials: false, env: client_env)
+            # puts bosh_runner.run('vms --vitals', deployment_name: 'simple', include_credentials: false, env: client_env)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts "=== dumping template for #{id} vm_cid #{id_instance.vm_cid}"
+              puts id_instance.read_job_template('job_with_bad_template', 'config/config.yml')
+            end
+
+            # recreate should work
+            puts "======== recreate deploy"
+            bosh_runner.run('recreate our_instance_group/0', deployment_name: 'simple', json: true, include_credentials: false, env: client_env, failure_expected: true)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts "=== dumping template for #{id} vm_cid #{id_instance.vm_cid}"
+              puts id_instance.read_job_template('job_with_bad_template', 'config/config.yml')
+              # puts id_instance.read_job_template('job_with_bad_template', 'bin/pre-start')
+            end
+
+            puts bosh_runner.run('instances', deployment_name: 'simple', include_credentials: false, env: client_env)
+          end
+
+          it 'and the variables do NOT change, should still successfuly recreate' do
+            puts "======== first deploy"
+            deploy_from_scratch(no_login: true, manifest_hash: manifest_hash, cloud_config_hash: cloud_config, include_credentials: false, env: client_env)
+            # manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_instance_index'] = 3
+            # manifest_hash['instance_groups'][0]['jobs'][0]['properties']['fail_on_job_start'] = true
+
+            # manifest_hash['instance_groups'][0]['jobs'][0]['properties']['gargamel']['color'] = '((new_var_a))'
+            # manifest_hash['variables'][0]['name'] = 'new_var_a'
+            config_server_helper.put_value(prepend_namespace('var_a'), 'new_password')
+
+            instance = director.instance('our_instance_group', '3', deployment: 'simple', include_credentials: false, env: client_env, no_login: true)
+
+            puts "======== bad deploy"
+
+            output, exit_code = deploy_from_scratch(
+              no_login: true,
+              manifest_hash: manifest_hash,
+              cloud_config_hash: cloud_config,
+              include_credentials: false,
+              env: client_env,
+              failure_expected: true,
+              return_exit_code: true
+            )
+            expect(exit_code).to_not eq(0)
+            expect(output).to include ("pre-start scripts failed")
+
+            puts bosh_runner.run('instances -i', deployment_name: 'simple', include_credentials: false, env: client_env)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              puts "=== dumping template for #{id}"
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts id_instance.read_job_template('job_with_bad_template', 'config/config.yml')
+            end
+
+            # recreate should work
+            puts "======== recreate deploy"
+            bosh_runner.run('recreate our_instance_group/0', deployment_name: 'simple', json: true, include_credentials: false, env: client_env)
+
+            %w(0 1 2 3 4 5 6).each do |id|
+              id_instance = director.instance('our_instance_group', id, deployment: manifest_hash['name'], include_credentials: false, env: client_env, no_login: true)
+              puts "=== dumping template for #{id} vm_cid #{id_instance.vm_cid}"
+              puts id_instance.read_job_template('job_with_bad_template', 'config/config.yml')
+              # puts id_instance.read_job_template('job_with_bad_template', 'bin/pre-start')
+            end
+
+            puts bosh_runner.run('instances -i', deployment_name: 'simple', include_credentials: false, env: client_env)
+          end
+        end
+
         context 'when an addon section references a variable to be generated' do
           let (:variables) do
             [

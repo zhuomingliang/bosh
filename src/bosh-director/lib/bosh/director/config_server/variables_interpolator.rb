@@ -1,9 +1,12 @@
 module Bosh::Director::ConfigServer
   class VariablesInterpolator
 
-    def initialize
+    attr_reader :is_deploy_action
+
+    def initialize(is_deploy_action = false)
       @logger = Bosh::Director::Config.logger
       @config_server_client = ClientFactory.create(@logger).create_client
+      @is_deploy_action = is_deploy_action
     end
 
     # @param [Hash] template_spec_properties Hash to be interpolated

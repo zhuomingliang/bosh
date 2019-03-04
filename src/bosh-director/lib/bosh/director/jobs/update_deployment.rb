@@ -17,7 +17,7 @@ module Bosh::Director
         @runtime_config_ids = runtime_config_ids
         @options = options
         @event_log = Config.event_log
-        @variables_interpolator = ConfigServer::VariablesInterpolator.new
+        @variables_interpolator = ConfigServer::VariablesInterpolator.new(deploy_action?)
       end
 
       def dry_run?

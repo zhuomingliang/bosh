@@ -244,13 +244,14 @@ module Bosh::Director::DeploymentPlan
         allow(variables_interpolator).to receive(:interpolate_link_spec_properties)
           .with(smurf_job_links, instance.desired_variable_set)
           .and_return(smurf_job_links)
+        allow(variables_interpolator).to receive(:is_deploy_action).and_return(true)
 
         expect(links_manager).to receive(:get_links_for_instance).and_return(links)
       end
 
       context 'links specs whitelisting' do
         it 'respects whitelist for links spec' do
-          expect([instance_spec.as_template_spec['links']]).to include(expected_links)
+          expect([instance_spec.as_template_spec(true)['links']]).to include(expected_links)
         end
       end
 
@@ -323,7 +324,7 @@ module Bosh::Director::DeploymentPlan
             .with(smurf_job_links, instance.desired_variable_set)
             .and_return(resolved_smurf_job_links)
 
-          spec = instance_spec.as_template_spec
+          spec = instance_spec.as_template_spec(true)
           expect(spec['properties']).to eq(resolved_properties)
           expect(spec['links']).to eq(resolved_links)
         end
@@ -342,7 +343,7 @@ module Bosh::Director::DeploymentPlan
 
         it 'returns a valid instance template_spec' do
           network_name = network_spec['name']
-          spec = instance_spec.as_template_spec
+          spec = instance_spec.as_template_spec(true)
 
           expect(spec['deployment']).to eq('fake-deployment')
           expect(spec['name']).to eq('fake-job')
@@ -376,7 +377,7 @@ module Bosh::Director::DeploymentPlan
         context 'when vm does not have network ip assigned' do
           it 'returns a valid instance template_spec' do
             network_name = network_spec['name']
-            spec = instance_spec.as_template_spec
+            spec = instance_spec.as_template_spec(true)
             expect(spec['deployment']).to eq('fake-deployment')
             expect(spec['name']).to eq('fake-job')
             expect(spec['job']).to eq(job_spec)
@@ -421,7 +422,7 @@ module Bosh::Director::DeploymentPlan
 
           it 'returns a valid instance template_spec' do
             network_name = network_spec['name']
-            spec = instance_spec.as_template_spec
+            spec = instance_spec.as_template_spec(true)
             expect(spec['deployment']).to eq('fake-deployment')
             expect(spec['name']).to eq('fake-job')
             expect(spec['job']).to eq(job_spec)

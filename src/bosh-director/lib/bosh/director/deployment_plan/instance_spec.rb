@@ -51,8 +51,8 @@ module Bosh::Director
         @variables_interpolator = variables_interpolator
       end
 
-      def as_template_spec
-        TemplateSpec.new(full_spec, @variables_interpolator, @instance.desired_variable_set, @instance).spec
+      def as_template_spec(use_last_successful = false)
+        TemplateSpec.new(full_spec, @variables_interpolator, @instance.desired_variable_set, @instance).spec(use_last_successful)
       end
 
       def as_apply_spec
@@ -106,9 +106,10 @@ module Bosh::Director
         @instance = instance
         links_serial_id = instance.deployment_model.links_serial_id
         @links_manager = Bosh::Director::Links::LinksManager.new(links_serial_id)
+        @logger = Bosh::Director::Config.logger
       end
 
-      def spec
+      def spec(use_last_successful = false)
         keys = [
           'deployment',
           'job',
@@ -140,13 +141,38 @@ module Bosh::Director
 
         template_hash = @full_spec.select {|k,v| keys.include?(k) }
 
-        template_hash['properties'] =  @variables_interpolator.interpolate_template_spec_properties(@full_spec['properties'], @full_spec['deployment'], @variable_set)
+        instance_properties = @full_spec['properties']
+
+        if @variables_interpolator.is_deploy_action
+          template_hash['properties'] =  @variables_interpolator.interpolate_template_spec_properties(instance_properties, @full_spec['deployment'], @variable_set)
+        else
+          unless use_last_successful
+            @logger.debug("===== re-rendering template with properties from instance model #{@instance.index} (#{@instance.instance_group_name}/#{@instance.model[:uuid]})")
+
+            # Pull properties from intended source
+            # TODO: why is this bad when we are doing the dynamic network re-render?
+            # TODO: should we use @instance.model.spec instead of [:spec_json]?
+            spec = @instance.model.spec
+            instance_properties = spec['properties'] unless spec.nil?
+            @logger.debug("===== properties used are: #{instance_properties.inspect}")
+
+            template_hash['properties'] =  @variables_interpolator.interpolate_template_spec_properties(instance_properties, @full_spec['deployment'], @variable_set)
+          else
+            @logger.debug("===== re-rendering template with properties from last successful variable set  #{@instance.index} (#{@instance.instance_group_name}/#{@instance.model[:uuid]})")
+            @logger.debug("===== properties (successful: #{JSON.parse(@instance.model[:spec_json])['properties']}) used are: #{instance_properties.inspect}")
+
+            # On retry render as last successful node
+            last_successful_variable_set = @instance.model.deployment.last_successful_variable_set
+            template_hash['properties'] =  @variables_interpolator.interpolate_template_spec_properties(instance_properties, @full_spec['deployment'], last_successful_variable_set)
+          end
+        end
 
         template_hash['links'] = {}
 
         links_hash = @links_manager.get_links_for_instance(@instance)
         links_hash.each do |job_name, links|
           template_hash['links'][job_name] ||= {}
+          # TODO: should we retry with the last_successful_varaible set here too?
           interpolated_links_spec = @variables_interpolator.interpolate_link_spec_properties(links, @variable_set)
 
           interpolated_links_spec.each do |link_name, link_spec|
