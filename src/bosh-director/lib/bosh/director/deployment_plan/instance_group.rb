@@ -283,6 +283,20 @@ module Bosh::Director
         end
       end
 
+      def validate_exported_from_matches_stemcell!
+        jobs.each do |job|
+          next if job.release.exported_from.empty?
+          exported_from = job.release.exported_from[0]
+          unless exported_from.compatible_with?(stemcell)
+            raise JobWithExportedFromMismatch,
+              "Invalid release detected in instance group '#{@name}': "\
+              "release '#{job.release.name}' is exported_from stemcell '#{exported_from.os}/#{exported_from.version}', "\
+              "but the instance group will run on '#{stemcell.desc}'"
+          end
+        end
+
+      end
+
       def validate_package_names_do_not_collide!
         releases_by_package_names = {}
 

@@ -1,13 +1,13 @@
 require 'spec_helper'
 
 describe Bosh::Director::DeploymentPlan::InstanceGroup do
-  subject(:instance_group) { Bosh::Director::DeploymentPlan::InstanceGroup.parse(plan, spec, event_log, logger, parse_options) }
+  let(:instance_group) { Bosh::Director::DeploymentPlan::InstanceGroup.parse(plan, spec, event_log, logger, parse_options) }
   let(:parse_options) { {} }
   let(:event_log)  { instance_double('Bosh::Director::EventLog::Log', warn_deprecated: nil) }
   let(:deployment) { Bosh::Director::Models::Deployment.make }
   let(:fake_ip_provider) { instance_double(Bosh::Director::DeploymentPlan::IpProvider, reserve: nil, reserve_existing_ips: nil) }
   let(:vm_type) { Bosh::Director::DeploymentPlan::VmType.new('name' => 'dea') }
-  let(:stemcell) { instance_double('Bosh::Director::DeploymentPlan::Stemcell') }
+  let(:stemcell) { instance_double('Bosh::Director::DeploymentPlan::Stemcell', os: 'linux', version: '250.4', desc: 'linux/250.4') }
   let(:env) { instance_double('Bosh::Director::DeploymentPlan::Env') }
   let(:variables_interpolator) { instance_double(Bosh::Director::ConfigServer::VariablesInterpolator) }
 
@@ -21,6 +21,21 @@ describe Bosh::Director::DeploymentPlan::InstanceGroup do
       use_tmpfs_config: false,
     )
   end
+
+  let(:spec) do
+    {
+      'name' => 'foobar',
+      'release' => release1.name,
+      'template' => release1_bar_job.name,
+      'vm_type' => 'dea',
+      'stemcell' => 'dea',
+      'env' => { 'key' => 'value' },
+      'instances' => 1,
+      'networks' => [{ 'name' => 'fake-network-name' }],
+      'properties' => {},
+    }
+  end
+
 
   let(:network) do
     instance_double(
@@ -110,6 +125,7 @@ describe Bosh::Director::DeploymentPlan::InstanceGroup do
 
     release1_version_model.add_package(release1_package1_model)
     release1_version2_model.add_package(release1_package1_model2)
+
     subject.update = update_config
   end
 
@@ -436,6 +452,65 @@ describe Bosh::Director::DeploymentPlan::InstanceGroup do
             end
           end
         end
+      end
+    end
+  end
+
+  describe '#validate_exported_from_matches_stemcell!' do
+    let(:instance_group) {
+      r = Bosh::Director::DeploymentPlan::InstanceGroup.new(logger)
+      r.name = 'foobar'
+      r.stemcell = stemcell
+      r.add_job(release1_bar_job)
+      r
+    }
+
+    context 'when jobs have no exported_from' do
+      it 'does not raise an error' do
+        instance_group.validate_exported_from_matches_stemcell!
+      end
+    end
+
+    context 'when jobs have exported_from that matches the stemcell' do
+      let(:release1) do
+        Bosh::Director::DeploymentPlan::ReleaseVersion.parse(
+          deployment,
+          'name' => 'release1',
+          'version' => '1',
+          'exported_from' => [{
+            'os' => stemcell.os,
+            'version' => stemcell.version,
+          }]
+        )
+      end
+
+      it 'does not raise an error' do
+        instance_group.validate_exported_from_matches_stemcell!
+      end
+    end
+
+    context 'when jobs have exported_from that do not match the stemcell' do
+      let(:release1) do
+        Bosh::Director::DeploymentPlan::ReleaseVersion.parse(
+          deployment,
+          'name' => 'release1',
+          'version' => '1',
+          'exported_from' => [{
+            'os' => 'the wrong one',
+            'version' => '3',
+          }]
+        )
+      end
+
+      it 'raises an error' do
+        expect do
+          instance_group.validate_exported_from_matches_stemcell!
+        end.to raise_error(
+          Bosh::Director::JobWithExportedFromMismatch,
+        "Invalid release detected in instance group 'foobar': "\
+        "release 'release1' is exported_from stemcell 'the wrong one/3', "\
+        "but the instance group will run on 'linux/250.4'"
+        )
       end
     end
   end

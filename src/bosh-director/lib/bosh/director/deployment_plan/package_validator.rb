@@ -94,7 +94,8 @@ module Bosh::Director
         stemcell = faults.first[:stemcell]
         exported_from_desc = "#{stemcell.name || stemcell.os}/#{stemcell.version}"
         msg = "Can't use release '#{release_desc}'. It is exported_from stemcell '#{exported_from_desc}', " \
-              "but not compiled against it:\n"
+              "but it references packages that are not compiled against it:\n"
+        # msg = "Can't use release X. It references packages which are not compiled against stemcell Y (required by exported_from)"
 
         msg + listed_packages(faults)
       end
