@@ -1,0 +1,31 @@
+---
+name: bazquux
+templates:
+  bazquux_ctl: bin/bazquux_ctl
+  pre_stop.erb: bin/pre-stop
+  drain.erb: bin/drain
+
+packages: []
+
+properties:
+  test_property:
+    description: A test property
+    default: 1
+
+  drain_type:
+    description: Used in drain script to trigger dynamic vs static drain behavior
+    default: static
+
+  dynamic_drain_wait1:
+    description: Number of seconds to wait when drain script is first called
+    default: -3
+
+  dynamic_drain_wait2:
+    description: Number of seconds to wait when drain script is called a second time
+    default: -2
+
+  network_name:
+    description: Network name used for determining printed IP address
+
+  networks:
+    description: All networks
