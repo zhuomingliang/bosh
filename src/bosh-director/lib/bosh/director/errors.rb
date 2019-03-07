@@ -161,6 +161,7 @@ module Bosh::Director
   NetworkReservationNotEnoughCapacity = err(130011)
   NetworkReservationIpOutsideSubnet = err(130012)
   NetworkReservationIpReserved = err(130013)
+  NetworkReservationVipMisconfigured = err(130014)
 
   # Manifest parsing: job section
   InstanceGroupMissingRelease = err(140001)

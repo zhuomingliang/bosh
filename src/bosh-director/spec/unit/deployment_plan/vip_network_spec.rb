@@ -69,4 +69,22 @@ describe Bosh::Director::DeploymentPlan::VipNetwork do
       end.not_to raise_error
     end
   end
+
+  describe :ip_type do
+    context 'when the network has subnets defined' do
+      it 'returns dynamic' do
+        network = BD::DeploymentPlan::VipNetwork.parse(network_spec, azs, logger)
+        expect(network.ip_type(nil)).to eq(:dynamic)
+      end
+    end
+
+    context 'when the network does not have subnets defined' do
+      let(:network_spec) { { 'name' => 'foo' } }
+
+      it 'returns static' do
+        network = BD::DeploymentPlan::VipNetwork.parse(network_spec, azs, logger)
+        expect(network.ip_type(nil)).to eq(:static)
+      end
+    end
+  end
 end

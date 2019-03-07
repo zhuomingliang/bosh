@@ -9,7 +9,7 @@ module Bosh::Director
       OPTIONAL_DEFAULTS = %w(addressable).sort
 
       # @return [String] network name
-      attr_accessor :name
+      attr_reader :name, :type
 
       # @return [String] canonical network name
       attr_accessor :canonical_name
@@ -23,8 +23,9 @@ module Bosh::Director
       #
       # @param [DeploymentPlan] deployment associated deployment plan
       # @param [Hash] network_spec parsed deployment manifest network section
-      def initialize(name, logger)
+      def initialize(name, type, logger)
         @name = name
+        @type = type
         @canonical_name = Canonicalizer.canonicalize(@name)
         @logger = logger
       end

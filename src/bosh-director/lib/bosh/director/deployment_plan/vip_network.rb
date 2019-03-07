@@ -15,8 +15,7 @@ module Bosh::Director
           DeploymentPlan::VipNetworkSubnet.parse(subnet_spec, name, availability_zones)
         end
 
-        cloud_properties = safe_property(network_spec, 'cloud_properties', class: Hash, default: {})
-
+        cloud_properties = safe_property(network_spec, 'cloud_properties', class: Hash, default: {}) 
         new(name, cloud_properties, subnets, logger)
       end
 
@@ -27,7 +26,7 @@ module Bosh::Director
       # @param [VipNetworkSubnet] vip network subnets parsed from the cloud config
       # @param [Logger] logger
       def initialize(name, cloud_properties, subnets, logger)
-        super(name, logger)
+        super(name, :vip, logger)
         @cloud_properties = cloud_properties
         @subnets = subnets
         @logger = TaggedLogger.new(logger, 'network-configuration')
@@ -53,7 +52,13 @@ module Bosh::Director
       end
 
       def ip_type(_)
+        return :dynamic if globally_allocate_ip?
+
         :static
+      end
+
+      def globally_allocate_ip?
+        @subnets.size.positive?
       end
 
       def has_azs?(_az_names)

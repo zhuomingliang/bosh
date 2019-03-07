@@ -24,9 +24,7 @@ module Bosh
           vip_static_ips_planner.add_vip_network_plans(desired_instance_plans, vip_networks)
 
           elect_bootstrap_instance(desired_instance_plans)
-
           update_instance_cloud_properties(vm_resources_cache, desired_instance_plans, instance_group.vm_resources.spec) if instance_group.vm_resources
-
           instance_plans
         end
 

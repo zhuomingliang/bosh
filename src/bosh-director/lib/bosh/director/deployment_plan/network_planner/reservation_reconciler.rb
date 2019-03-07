@@ -13,6 +13,7 @@ module Bosh::Director::DeploymentPlan
         reconciled_reservations = []
 
         existing_reservations.each do |existing_reservation|
+          # can't reuse a reservation if it switches az
           unless az_is_desired(existing_reservation)
             @logger.debug(
               "Can't reuse reservation #{existing_reservation}, existing reservation az does not match " \
@@ -24,6 +25,7 @@ module Bosh::Director::DeploymentPlan
           desired_reservation = desired_reservations.find do |reservation|
             reservation_contains_assigned_address?(existing_reservation, reservation) &&
               (reservation.dynamic? || reservation.ip == existing_reservation.ip)
+
           end
 
           if desired_reservation && existing_reservation.reserved?

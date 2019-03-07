@@ -30,7 +30,7 @@ module Bosh::Director
       end
 
       def initialize(name, subnets, logger, managed = false)
-        super(name, TaggedLogger.new(logger, 'network-configuration'))
+        super(name, :manual, TaggedLogger.new(logger, 'network-configuration'))
         @subnets = subnets
         @managed = managed
       end

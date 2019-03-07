@@ -78,7 +78,7 @@ module Bosh::Director
       end
 
       def initialize(name, subnets, logger)
-        super(name, logger)
+        super(name, :dynamic, logger)
         @subnets = subnets
       end
 

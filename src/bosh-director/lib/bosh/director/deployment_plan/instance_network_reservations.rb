@@ -9,7 +9,7 @@ module Bosh::Director
         reservations.logger.debug("Creating instance network reservations from agent state for instance '#{instance_model}'")
 
         state.fetch('networks', []).each do |network_name, network_config|
-          reservations.add_existing(instance_model, deployment, network_name, network_config['ip'], '', network_config['type'])
+          reservations.add_existing(instance_model, deployment, network_name, network_config['ip'], '')
         end
 
         reservations
@@ -23,14 +23,15 @@ module Bosh::Director
         ip_addresses = instance_model.ip_addresses.clone if ip_addresses.empty?
 
         ip_addresses.each do |ip_address|
-          reservations.add_existing(instance_model, deployment, ip_address.network_name, ip_address.address, ip_address.type, 'manual')
+          reservations.add_existing(instance_model, deployment, ip_address.network_name, ip_address.address, ip_address.type)
         end
 
         unless instance_model.spec.nil?
           # Dynamic network reservations are not saved in DB, recreating from instance spec
           instance_model.spec.fetch('networks', []).each do |network_name, network_config|
             next unless network_config['type'] == 'dynamic'
-            reservations.add_existing(instance_model, deployment, network_name, network_config['ip'], '', network_config['type'])
+
+            reservations.add_existing(instance_model, deployment, network_name, network_config['ip'], '')
           end
         end
 
@@ -60,10 +61,10 @@ module Bosh::Director
         @reservations.delete(reservation)
       end
 
-      def add_existing(instance_model, deployment, network_name, ip, ip_type, existing_network_type)
+      def add_existing(instance_model, deployment, network_name, ip, ip_type)
         network = deployment.network(network_name) || deployment.deleted_network(network_name)
         @logger.debug("Registering existing reservation with #{ip_type} IP '#{format_ip(ip)}' for instance '#{instance_model}' on network '#{network.name}'")
-        reservation = ExistingNetworkReservation.new(instance_model, network, ip, existing_network_type)
+        reservation = ExistingNetworkReservation.new(instance_model, network, ip, network.type)
         deployment.ip_provider.reserve_existing_ips(reservation)
         @reservations << reservation
       end

@@ -10,19 +10,31 @@ module Bosh::Director::DeploymentPlan
         vip_networks.each do |vip_network|
           static_ips = vip_network.static_ips.dup
 
+          if static_ips.any? && vip_network.deployment_network.globally_allocate_ip?
+            raise(
+              Bosh::Director::NetworkReservationVipMisconfigured,
+              'IPs cannot be specified in both the instance group and the cloud config',
+            )
+          end
+
           unplaced_instance_plans = []
           instance_plans.each do |instance_plan|
             static_ip = get_instance_static_ip(instance_plan.existing_instance, vip_network.name, static_ips)
             if static_ip
               instance_plan.network_plans << @network_planner.network_plan_with_static_reservation(instance_plan, vip_network, static_ip)
             else
+              # TODO(JM): Logic for migrating static IPs on the instance to globally allocated vip networks?
               unplaced_instance_plans << instance_plan
             end
           end
 
           unplaced_instance_plans.each do |instance_plan|
-            static_ip = static_ips.shift
-            instance_plan.network_plans << @network_planner.network_plan_with_static_reservation(instance_plan, vip_network, static_ip)
+            if vip_network.deployment_network.globally_allocate_ip?
+              instance_plan.network_plans << @network_planner.network_plan_with_dynamic_reservation(instance_plan, vip_network)
+            else
+              static_ip = static_ips.shift
+              instance_plan.network_plans << @network_planner.network_plan_with_static_reservation(instance_plan, vip_network, static_ip)
+            end
           end
         end
       end

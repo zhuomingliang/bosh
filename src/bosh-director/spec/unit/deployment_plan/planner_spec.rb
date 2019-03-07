@@ -94,7 +94,7 @@ module Bosh::Director
           deployment_model.add_stemcell(stemcell_model)
           deployment_model.add_variable_set(Models::VariableSet.make(deployment: deployment_model))
           cloud_planner = CloudPlanner.new(
-            networks: [Network.new('default', logger)],
+            networks: [Network.new('default', :default, logger)],
             global_network_resolver: GlobalNetworkResolver.new(planner, [], logger),
             ip_provider_factory: IpProviderFactory.new(true, logger),
             disk_types: [],
