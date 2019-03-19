@@ -83,7 +83,16 @@ module Bosh::Director
 
     def add_aliases(aliases, dns_records)
       aliases.each do |a|
-        dns_records.add_alias(a.domain, a.target)
+        dns_records.add_alias(
+          a.domain,
+          {
+            root_domain: @domain_name,
+            health_filter: a.health_filter,
+            initial_health_check: a.initial_health_check,
+            group_id: a.group_id,
+            placeholder_type: a.placeholder_type,
+          }
+        )
       end
     end
 

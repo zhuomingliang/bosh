@@ -123,6 +123,25 @@ module Bosh::Director
         end
       end
 
+      # aliases.json
+      # i give you alias, and i give you translated query
+      # i give you alias, and some intermediate information, and let you construct translated queries
+      # records: [.... uuid, group_id ]
+      # aliases: {
+      #   "foo.bar": [...]
+      # }
+      # aliases: [
+      #   { domain: "_.foo.bar", targets: ["q-s0.q-g5.bosh"], placeholder: 'uuid' }
+      #   { domain: "", groupid: 32, criteria: { healthy: 'all' } }
+      # ]
+      # dig 2981743.foo.bar
+      # DNS server takes 2981743 and attempts to convert it to a numerical int (ANDDDD uuid == true)
+      # pops it into m criteria
+      # convert it to ip
+      # Question: The DNS server is doing more things, how will we measure the technical complexity cost?
+      # Question: What's the value of all this against each possible value of "health_filter"?
+      # Question: How does impact our long-term goal of reducing DNS logic in the director? Step closer to "extracting" dns from director?
+
       describe 'status' do
         context 'when default' do
           let(:specific_query) do
