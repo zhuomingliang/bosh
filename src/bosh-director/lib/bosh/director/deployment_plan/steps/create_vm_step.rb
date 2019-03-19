@@ -4,7 +4,7 @@ module Bosh::Director
       class CreateVmStep
         include PasswordHelper
 
-        def initialize(instance_plan, agent_broadcaster, disks, tags = {}, use_existing = false)
+        def initialize(instance_plan, agent_broadcaster, disks, tags = {}, use_existing = false, purpose="")
           @instance_plan = instance_plan
           @agent_broadcaster = agent_broadcaster
           @disks = disks
@@ -13,6 +13,7 @@ module Bosh::Director
           @logger = Config.logger
           @vm_deleter = VmDeleter.new(@logger, false, Config.enable_virtual_delete_vms)
           @variables_interpolator = Bosh::Director::ConfigServer::VariablesInterpolator.new
+          @purpose = purpose
         end
 
         def perform(report)
@@ -95,7 +96,12 @@ module Bosh::Director
           vm_options = {instance: instance_model, agent_id: agent_id, cpi: cpi}
 
           env['bosh'] ||= {}
-          env['bosh'] = Config.agent_env.merge(env['bosh'])
+
+          env['bosh'] = if @purpose == 'compilation'
+                          Config.compilation_agent_env.merge(env['bosh'])
+                        else
+                          Config.agent_env.merge(env['bosh'])
+                        end
 
           if Config.nats_server_ca
             env['bosh'] ||= {}

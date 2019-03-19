@@ -33,6 +33,7 @@ module Bosh::Director
               LocalDnsEncoderManager.create_dns_encoder(deployment_plan.use_short_dns_addresses?, deployment_plan.use_link_dns_names?),
               AgentBroadcaster.new,
               deployment_plan.link_provider_intents,
+              'compilation',
             ),
             logger,
           )

@@ -152,6 +152,7 @@ module Bosh::Director
         @cloud_options = config['cloud']
         agent_config = config.fetch('agent', {})
         @agent_env = agent_config.fetch('env', {}).fetch('bosh', {})
+        @compilation_agent_env = agent_config.fetch('compilation', {}).fetch('env', {}).fetch('bosh', {})
 
         @agent_wait_timeout = agent_config.fetch('agent_wait_timeout', 600)
 
@@ -239,6 +240,10 @@ module Bosh::Director
 
       def agent_env
         @agent_env || {}
+      end
+
+      def compilation_agent_env
+        @compilation_agent_env || {}
       end
 
       def log_director_start

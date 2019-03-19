@@ -200,7 +200,7 @@ module Bosh::Director
 
     def vm_creator(template_cache, dns_encoder, link_provider_intents)
       agent_broadcaster = AgentBroadcaster.new
-      @vm_creator ||= VmCreator.new(@logger, template_cache, dns_encoder, agent_broadcaster, link_provider_intents)
+      @vm_creator ||= VmCreator.new(@logger, template_cache, dns_encoder, agent_broadcaster, link_provider_intents, 'instance')
     end
 
     def validate_spec(spec)

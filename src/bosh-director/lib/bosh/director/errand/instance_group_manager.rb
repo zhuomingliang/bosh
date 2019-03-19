@@ -19,6 +19,7 @@ module Bosh::Director
         @dns_encoder,
         agent_broadcaster,
         @deployment_planner.link_provider_intents,
+        'instance',
       )
     end
 
