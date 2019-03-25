@@ -54,7 +54,7 @@ module Bosh::Director
           return
         end
 
-        if reservation.network.is_a?(VipNetwork)
+        if reservation.network.is_a?(VipNetwork) && !reservation.network.globally_allocate_ip?
           reserve_vip(reservation)
           return
         end
@@ -63,8 +63,14 @@ module Bosh::Director
         network, subnet = find_network_and_subnet_containing(reservation.ip, reservation.network.name)
         return unless subnet
 
-        @logger.debug("Marking existing IP #{format_ip(reservation.ip)} as reserved")
         reservation.resolve_network(network)
+
+        if reservation.network.is_a?(VipNetwork)
+          reserve_vip(reservation)
+          return
+        end
+
+        @logger.debug("Marking existing IP #{format_ip(reservation.ip)} as reserved")
         reserve_manual_with_subnet(reservation, subnet)
       end
 
@@ -144,9 +150,6 @@ module Bosh::Director
             @logger.debug("Reserving vip IP '#{format_ip(ip)}' for vip network '#{reservation.network.name}'")
             reservation.resolve_ip(ip)
           else
-            subnet = find_vip_network_and_subnet(reservation.ip, reservation.network)
-            return unless subnet
-
             @ip_repo.add(reservation)
           end
 
@@ -185,11 +188,24 @@ module Bosh::Director
           return [network, subnet] if subnet
         end
 
+        networks.select(&:vip?).each do |network|
+          subnet = network.subnets.find { |subnet| subnet.is_reservable?(cidr_ip) }
+          return [network, subnet] if subnet
+        end
+
         return nil
       end
 
-      def find_vip_network_and_subnet(cidr_ip, network)
-        network.subnets.find { |subnet| subnet.is_reservable?(cidr_ip) }
+      def find_vip_network_and_subnet(cidr_ip, network_name)
+        networks = @networks.values.dup
+        networks.unshift(networks.find { |network| network.name == network_name }).compact!
+
+        networks.select(&:vip?).each do |network|
+          subnet = network.subnets.find { |subnet| subnet.is_reservable?(cidr_ip) }
+          return [network, subnet] if subnet
+        end
+
+        return nil
       end
     end
   end

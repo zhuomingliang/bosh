@@ -59,6 +59,10 @@ module Bosh::Director
         false
       end
 
+      def vip?
+        false
+      end
+
       def managed?
         false
       end

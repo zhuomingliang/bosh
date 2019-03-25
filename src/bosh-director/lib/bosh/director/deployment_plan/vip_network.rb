@@ -51,6 +51,10 @@ module Bosh::Director
         }
       end
 
+      def vip?
+        true
+      end
+
       def ip_type(*)
         return :dynamic if globally_allocate_ip?
 

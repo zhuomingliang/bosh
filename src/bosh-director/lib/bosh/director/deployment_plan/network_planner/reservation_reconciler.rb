@@ -22,6 +22,7 @@ module Bosh::Director::DeploymentPlan
             next
           end
 
+
           desired_reservation = desired_reservations.find do |reservation|
             reservation_contains_assigned_address?(existing_reservation, reservation) &&
               (reservation.dynamic? || reservation.ip == existing_reservation.ip)
@@ -89,7 +90,8 @@ module Bosh::Director::DeploymentPlan
 
       def reservation_contains_assigned_address?(existing_reservation, desired_reservation)
         return true if existing_reservation.network == desired_reservation.network
-        return false unless desired_reservation.network.manual?
+
+        return false unless desired_reservation.network.manual? || desired_reservation.network.vip?
         return false unless existing_reservation.network.manual?
 
         desired_reservation.network.subnets.any? do |subnet|
