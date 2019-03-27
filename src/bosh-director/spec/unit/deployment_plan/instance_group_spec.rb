@@ -630,13 +630,6 @@ describe Bosh::Director::DeploymentPlan::InstanceGroup do
               },
             },
           ],
-          'template' => 'foo',
-          'version' => '200',
-          'sha1' => 'fake_sha1',
-          'blobstore_id' => 'blobstore_id_for_foo_job',
-          'logs' => {
-            'filter_name1' => 'foo/*',
-          },
         )
       end
     end
@@ -657,39 +650,7 @@ describe Bosh::Director::DeploymentPlan::InstanceGroup do
               'blobstore_id' => 'blobstore_id_for_foo_job',
             },
           ],
-          'template' => 'foo',
-          'version' => '200',
-          'sha1' => 'fake_sha1',
-          'blobstore_id' => 'blobstore_id_for_foo_job',
         )
-      end
-    end
-
-    context 'when returning the jobs' do
-      let(:job_a) do
-        r = Bosh::Director::DeploymentPlan::Job.new(release1, 'a')
-        r.bind_existing_model(release1_job_a_model)
-        r
-      end
-      let(:release1_job_a_model) { Bosh::Director::Models::Template.make(name: 'a', release: release1_model) }
-
-      let(:job_b) do
-        r = Bosh::Director::DeploymentPlan::Job.new(release1, 'b')
-        r.bind_existing_model(release1_job_b_model)
-        r
-      end
-      let(:release1_job_b_model) { Bosh::Director::Models::Template.make(name: 'b', release: release1_model) }
-
-      let(:job_c) do
-        r = Bosh::Director::DeploymentPlan::Job.new(release1, 'c')
-        r.bind_existing_model(release1_job_c_model)
-        r
-      end
-      let(:release1_job_c_model) { Bosh::Director::Models::Template.make(name: 'c', release: release1_model) }
-
-      it 'returns the jobs sorted by name' do
-        instance_group.jobs = [job_b, job_c, job_a]
-        expect(instance_group.spec['templates'].collect { |t| t['name'] }).to eq(['a','b','c'])
       end
     end
   end

@@ -390,8 +390,11 @@ module Bosh
           # though, because we got it from the spec function in job.rb which
           # automatically makes it non-legacy.
           converted_current = InstanceGroup.convert_from_legacy_spec(@instance.current_job_spec)
-          changed = ordered_spec(job.spec) != ordered_spec(converted_current)
-          log_changes(__method__, converted_current, job.spec, @instance) if changed
+          ordered_job_spec = ordered_spec(job.spec)
+          ordered_current_spec = ordered_spec(converted_current)
+
+          changed = ordered_job_spec != ordered_current_spec
+          log_changes(__method__, ordered_current_spec, ordered_job_spec, @instance) if changed
           changed
         end
 
